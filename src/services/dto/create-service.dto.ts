@@ -1,26 +1,30 @@
 import {
-  IsNotEmpty,
   IsString,
+  IsNotEmpty,
   IsNumber,
-  Min,
   IsOptional,
+  Min,
 } from 'class-validator';
 
 export class CreateServiceDto {
-  @IsString({ message: 'O título deve ser um texto' })
-  @IsNotEmpty({ message: 'O título do serviço é obrigatório' })
+  @IsString()
+  @IsNotEmpty()
   title: string;
 
-  @IsString({ message: 'A descrição deve ser um texto' })
-  @IsNotEmpty({ message: 'A descrição é obrigatória' })
+  @IsString()
+  @IsNotEmpty()
   description: string;
 
-  @IsNumber({}, { message: 'O preço deve ser um número' })
-  @Min(0, { message: 'O preço não pode ser negativo' })
+  @IsNumber()
+  @Min(0)
   price: number;
 
-  @IsString({ message: 'A categoria deve ser um texto' })
-  @IsNotEmpty({ message: 'A categoria é obrigatória' })
+  // --- CAMPOS NOVOS QUE ESTAVAM FALTANDO ---
+
+  @IsString()
+  @IsNotEmpty()
+  category: string; // <--- O culpado do erro!
+
   @IsString()
   @IsOptional()
   location?: string;
@@ -28,8 +32,4 @@ export class CreateServiceDto {
   @IsString()
   @IsOptional()
   coverUrl?: string;
-
-  @IsString()
-  @IsOptional()
-  videoUrl?: string;
 }
