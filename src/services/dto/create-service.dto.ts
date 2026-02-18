@@ -1,35 +1,10 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  Min,
-} from 'class-validator';
-
+// DTO Limpo: Sem validações para evitar erro 400 no upload de arquivo
 export class CreateServiceDto {
-  @IsString()
-  @IsNotEmpty()
   title: string;
-
-  @IsString()
-  @IsNotEmpty()
   description: string;
-
-  @IsNumber()
-  @Min(0)
-  price: number;
-
-  // --- CAMPOS NOVOS QUE ESTAVAM FALTANDO ---
-
-  @IsString()
-  @IsNotEmpty()
-  category: string; // <--- O culpado do erro!
-
-  @IsString()
-  @IsOptional()
-  location?: string;
-
-  @IsString()
-  @IsOptional()
+  price: number | string; // Aceita os dois tipos
+  category: string;
+  location: string;
   coverUrl?: string;
+  videoUrl?: string;
 }

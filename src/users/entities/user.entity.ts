@@ -53,11 +53,11 @@ export class User {
 
   // --- NOVA COLUNA: O PLANO ---
   @Column({
-    type: 'enum',
-    enum: UserPlan,
-    default: UserPlan.FREE, // Todo mundo nasce Free
+    type: 'simple-enum', // <--- AQUI ESTÁ A MUDANÇA (era 'enum')
+    enum: ['FREE', 'PRO'], // ou o nome do seu Enum se tiver um
+    default: 'FREE',
   })
-  plan: UserPlan;
+  plan: string;
 
   @OneToMany(() => Service, (service) => service.provider)
   services: Service[];

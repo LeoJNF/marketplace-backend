@@ -1,30 +1,43 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { UsersService } from 'src/users/users.service';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(private usersService: UsersService) {
     super({
-      // 1. Pega o token do cabeçalho Authorization: Bearer <token>
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      // 2. Não aceita tokens vencidos
       ignoreExpiration: false,
-      // 3. Usa a senha do .env para verificar se o token é legítimo
-      // O "as string" garante ao TS que a chave existe
-      secretOrKey: configService.get<string>('JWT_SECRET') as string,
+      // 👇 TEM QUE SER A MESMA DO AUTH.MODULE.TS (Copie e Cole se precisar)
+      secretOrKey: 'CHAVE_SUPER_SECRETA_123',
     });
   }
 
-  // Se o token for válido, essa função roda e devolve os dados do usuário
-  // eslint-disable-next-line @typescript-eslint/require-await
   async validate(payload: any) {
-    if (!payload) {
-      throw new UnauthorizedException();
-    }
-    // O que retornarmos aqui vai ficar disponível em "req.user" nas rotas
+    // Se esse log aparecer, a chave está certa!
+    console.log('--- VALIDANDO TOKEN ---');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    console.log('ID no Token:', payload.sub || payload.id);
+
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    return { id: payload.sub, email: payload.email, role: payload.role };
+    const id = payload.sub || payload.id;
+
+    if (!id) {
+      throw new UnauthorizedException('Token sem ID');
+    }
+
+    // Buscamos o usuário no banco
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/await-thenable
+    const user: User = (await this.usersService.findOne(id)) as any;
+
+    if (!user) {
+      console.log('FALHA: Usuário não achado no banco.');
+      throw new UnauthorizedException('Usuário não existe');
+    }
+
+    console.log('SUCESSO: Usuário encontrado:', user.email);
+    return user;
   }
 }

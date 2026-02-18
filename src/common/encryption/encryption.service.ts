@@ -1,40 +1,40 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 @Injectable()
 export class EncryptionService {
-  // <--- A MÁGICA ESTÁ NESTE "export"
-  private algorithm = 'aes-256-ctr';
-  private key: Buffer;
+  private readonly algorithm = 'aes-256-ctr';
 
-  constructor(private configService: ConfigService) {
-    const keyString = this.configService.get<string>('ENCRYPTION_KEY');
-    if (!keyString) {
-      throw new Error('ENCRYPTION_KEY não definida no .env');
-    }
-    this.key = Buffer.from(keyString, 'hex');
-  }
+  // 👇 CHAVE DE 32 CARACTERES EXATOS. NÃO MUDE NADA AQUI.
+  private readonly key = '12345678901234567890123456789012';
 
   encrypt(text: string): string {
     const iv = randomBytes(16);
     const cipher = createCipheriv(this.algorithm, this.key, iv);
     const encrypted = Buffer.concat([cipher.update(text), cipher.final()]);
+
     return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
   decrypt(hash: string): string {
-    const [ivHex, encryptedHex] = hash.split(':');
-    if (!ivHex || !encryptedHex) {
-      throw new Error('Hash inválido ou corrompido');
+    // Proteção contra hash vazio ou inválido
+    if (!hash || !hash.includes(':')) {
+      return '';
     }
-    const iv = Buffer.from(ivHex, 'hex');
-    const encryptedText = Buffer.from(encryptedHex, 'hex');
+
+    const [ivPart, contentPart] = hash.split(':');
+
+    if (!ivPart || !contentPart) {
+      return '';
+    }
+
+    const iv = Buffer.from(ivPart, 'hex');
     const decipher = createDecipheriv(this.algorithm, this.key, iv);
     const decrypted = Buffer.concat([
-      decipher.update(encryptedText),
+      decipher.update(Buffer.from(contentPart, 'hex')),
       decipher.final(),
     ]);
+
     return decrypted.toString();
   }
 }

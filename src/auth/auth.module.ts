@@ -2,30 +2,23 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
-import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
     UsersModule,
-    PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: {
-          // O comentário abaixo desliga o aviso do ESLint para esta linha específica
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          expiresIn: (configService.get<string>('JWT_EXPIRATION') ??
-            '1d') as any,
-        },
-      }),
+    // Define o padrão como JWT para evitar confusão
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.register({
+      // 👇 ESSA CHAVE TEM QUE SER IGUAL A DA STRATEGY
+      secret: 'CHAVE_SUPER_SECRETA_123',
+      signOptions: { expiresIn: '1d' },
     }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
+  exports: [AuthService],
 })
 export class AuthModule {}

@@ -1,85 +1,115 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
-  UseGuards,
-  Request,
-  Get,
-  Param,
   Patch,
+  Param,
   Delete,
-  Query,
+  UseGuards,
+  Req,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { User } from '../users/entities/user.entity';
+
+interface AuthRequest {
+  user: User;
+}
 
 @Controller('services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
-  // 🔒 Rota Protegida: Criar Serviço
+  // 👇 NOVO MÉTODO: Busca serviços de um prestador específico
+  // Deve vir ANTES do @Get(':id') para não confundir as rotas
+  @Get('provider/:id')
+  findByProvider(@Param('id') id: string) {
+    return this.servicesService.findByProvider(id);
+  }
+
   @Post()
   @UseGuards(AuthGuard('jwt'))
-  create(@Body() createServiceDto: CreateServiceDto, @Request() req: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    return this.servicesService.create(createServiceDto, req.user);
-  }
+  @UseInterceptors(
+    FileInterceptor('video', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
 
-  // 🌍 Rota Pública: Listar Serviços (Com Filtros e Busca) 🔍
-  @Get()
-  findAll(
-    @Query('category') category?: string,
-    @Query('maxPrice') maxPrice?: string, // Vem como string da URL
-    @Query('location') location?: string,
-    @Query('search') search?: string,
+          // 👇 GARANTINDO A EXTENSÃO MP4
+          let ext = extname(file.originalname);
+          if (!ext || ext === '.blob') {
+            ext = '.mp4';
+          }
+
+          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
+  create(
+    @Req() req: AuthRequest,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: any,
   ) {
-    // Converte o preço para número se ele existir na URL
-    const priceNumber = maxPrice ? parseFloat(maxPrice) : undefined;
+    const createServiceDto = new CreateServiceDto();
 
-    return this.servicesService.findAll(
-      category,
-      priceNumber,
-      location,
-      search,
-    );
-  }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    createServiceDto.title = body.title;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    createServiceDto.description = body.description;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    createServiceDto.category = body.category;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    createServiceDto.location = body.location;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    createServiceDto.coverUrl = body.coverUrl;
 
-  // 🔒 Rota Privada: Meus Serviços (Dashboard)
-  @Get('my-services')
-  @UseGuards(AuthGuard('jwt'))
-  findMyServices(@Request() req: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    return this.servicesService.findMyServices(req.user.id);
+    const parsedPrice = Number(body.price);
+    createServiceDto.price = isNaN(parsedPrice) ? 0 : parsedPrice;
+
+    if (file) {
+      createServiceDto.videoUrl = file.filename;
+    }
+
+    console.log('Recebido:', createServiceDto);
+
+    return this.servicesService.create(createServiceDto, req.user.id);
   }
 
-  // 🌍 Rota Pública: Ver Detalhes (+1 View)
+  @Get()
+  findAll() {
+    return this.servicesService.findAll();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.servicesService.findOne(id);
   }
 
-  // 🔒 Editar Serviço (Só o dono)
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'))
   update(
     @Param('id') id: string,
-    @Body() updateServiceDto: any,
-    @Request() req: any,
+    @Body() updateServiceDto: UpdateServiceDto,
+    @Req() req: AuthRequest,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return this.servicesService.update(id, updateServiceDto, req.user.id);
   }
 
-  // 🔒 Apagar Serviço (Só o dono)
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
-  remove(@Param('id') id: string, @Request() req: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  remove(@Param('id') id: string, @Req() req: AuthRequest) {
     return this.servicesService.remove(id, req.user.id);
-  }
-  @Patch(':id/click-whatsapp')
-  clickWhatsapp(@Param('id') id: string) {
-    return this.servicesService.registerClick(id);
   }
 }
